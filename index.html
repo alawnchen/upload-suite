@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>XHR2 Upload Sample</title>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
+<script type="text/javascript">
+var USE_CLIENT_PROGRESS = true;
+
+$(document).ready(function() {
+	$("#start_upload").on("click", startUpload);
+});
+
+var startUpload = function() {
+	var file_list = $("#file_list")[0];
+	if (file_list.files.length>0) {
+		var i = 0;
+		var nextStep = function() {
+			if (++i<file_list.files.length) {
+				uploadSingleFile(file_list.files[i], nextStep);
+			} else {
+				alert("Every file is OK!");
+			}
+		};
+		uploadSingleFile(file_list.files[0], nextStep);
+	} else {
+		alert("No file selected.");
+	}
+};
+
+var uploadSingleFile = function(fileObj, nextStep) {
+	var xhr2 = new XMLHttpRequest();
+	var formData = new FormData();
+	formData.append("upload", fileObj);
+	xhr2.open("post", "/upload-request", true);
+
+	// Upload complete or error
+	xhr2.onreadystatechange = function()  {
+		if (xhr2.readyState==4) {
+			if (xhr2.status==200) {
+				$("#progress_bar").val(100);
+				$("#progress_value").text(100);
+			} else {
+				alert(xhr2.status + ": " + xhr2.statusText);
+				$("#progress_bar").val(0);
+				$("#progress_value").text(0);
+			}
+
+			if (!USE_CLIENT_PROGRESS) {
+				clearInterval(itv);
+			}
+
+			nextStep();
+		}
+	};
+
+	// Client progress - HTML5 style (recommanded)
+	if (USE_CLIENT_PROGRESS) {
+		xhr2.upload.onprogress = function(e) {
+			var percentage = Math.floor(100*e.position/e.totalSize);
+			$("#progress_bar").val(percentage);
+			$("#progress_value").text(percentage);
+		};
+	}
+
+	// Server progress - Nginx upload progress module
+	if (!USE_CLIENT_PROGRESS) {
+		// generate an UUID
+		var i;
+		var uuid128 = "";
+		for(i=0;i<8;i++) {
+			uuid128 += Math.floor((1+Math.random())*0x10000).toString(16).substring(1);
+			if ([1,2,3,4].indexOf(i)>-1) uuid128 += "-";
+		}
+
+		// trace progress by UUID
+		xhr2.setRequestHeader("X-Progress-ID", uuid128);
+		var itv = setInterval(function() {
+			$.ajax({
+				url: "/upload-progress",
+				type: "get",
+				dataType: "json",
+				headers: {"X-Progress-ID": uuid128},
+				success: function(progress) {
+					if (progress.state=="uploading") {
+						var percentage = Math.floor(100*progress.received/progress.size);
+						$("#progress_bar").val(percentage);
+						$("#progress_value").text(percentage);
+					} else {
+						alert(progress.state);
+					}
+				}
+			});
+		}, 500);
+	}
+
+	// Send upload request
+	xhr2.send(formData);
+};
+</script>
+</head>
+
+<body>
+<input id="file_list" type="file" multiple />
+<input id="start_upload" type="button" value="Upload" />
+<progress id="progress_bar" max="100" value="0"></progress>
+<span id="progress_value">0</span>%
+</body>
+
+</html>
