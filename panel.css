@@ -1,0 +1,45 @@
+#queue_list > .label { clear: left; text-align: center; }
+#queue_list > .item  { clear: left; }
+
+#queue_list > .hint {
+	clear: left;
+	width: 602px;
+	text-align: center;
+	border: 1px solid black;
+	padding: 3px 0px;
+}
+
+.hint > .step2,
+.hint > .step3,
+.hint > .step4,
+.hint > .step5 { display: none; }
+
+#queue_list > .label > div { background: #eee; }
+
+#queue_list > .label > div,
+#queue_list > .item > div {
+	padding: 0px 10px;
+	float: left;
+	height: 25px;
+	line-height: 20px;
+	border: 1px solid black;
+	border-width: 1px 0px 0px 1px;
+}
+
+#queue_list > .label > div:nth-child(1),
+#queue_list > .item > div:nth-child(1) { width: 230px; }
+
+#queue_list > .label > div:nth-child(2),
+#queue_list > .item > div:nth-child(2) { width: 80px; }
+
+#queue_list > .label > div:nth-child(3),
+#queue_list > .item > div:nth-child(3) {
+	width: 230px;
+	border-right-width: 1px;
+}
+
+#queue_list > .item:last-child > div { border-bottom-width: 1px; }
+#queue_list > .item > div:nth-child(2) { text-align: right; }
+#queue_list > .item > div:nth-child(3) { text-align: center; }
+
+#hidden_elements { display: none; }

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>XHR2 Upload Panel</title>
+<link rel="stylesheet" type="text/css" href="panel.css" />
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
+<script type="text/javascript">
+var USE_CLIENT_PROGRESS = false;
+
+var xhr2 = new XMLHttpRequest();
+var abort_flag = false;
+
+$(document).ready(function() {
+	// Step 1
+	$("#queue_list > .hint > .step1 > button").click(function() {
+		$("#file_list").trigger("click");
+	});
+	$("#file_list").on("change", listFiles);
+
+	// Step 2
+	$("#queue_list > .hint > .step2 > .sure").click(startUpload);
+	$("#queue_list > .hint > .step2 > .cancel").click(function() {
+		$("#queue_list > .item").remove();
+		$("#queue_list > .hint > .step2").hide();
+		$("#queue_list > .hint > .step1").show();
+	});
+
+	// Step 3
+	$("#queue_list > .hint > .step3 > .abort").click(function() {
+		abort_flag = true;
+		xhr2.abort();
+		$("#queue_list > .hint > .step3").hide();
+		$("#queue_list > .hint > .step5").show();
+	});
+});
+
+var listFiles = function() {
+	var file_list = $("#file_list")[0];
+
+	if (file_list.files.length>0) {
+		var i;
+
+		for (i=0;i<file_list.files.length;i++) {
+			var f = file_list.files[i];
+			var qitem = '<div class="item"><div>{NAME}</div><div>{SIZE}</div><div>Pending</div></div>';
+			qitem = qitem.replace("{NAME}", f.name);
+			qitem = qitem.replace("{SIZE}", properSize(f.size));
+			$(qitem).insertBefore("#queue_list > .hint");
+		}
+
+		$("#queue_list > .hint > .step1").hide();
+		$("#queue_list > .hint > .step2").show();
+	}
+};
+
+var startUpload = function() {
+	var i = 0;
+	var file_list = $("#file_list")[0];
+	var next_pos  = $(".item").eq(i).children("div").last();
+
+	$("#queue_list > .hint > .step2").hide();
+	$("#queue_list > .hint > .step3").show();
+
+	next_pos.html("");
+	next_pos.append($("#progress_view"));
+
+	var nextStep = function() {
+		if (abort_flag) {
+			while (i<file_list.files.length) {
+				$(".item").eq(i++).children("div").last().html("Aborted");
+			}
+		} else {
+			if (++i<file_list.files.length) {
+				$("#progress_bar").val(0);
+				$("#progress_text").text(0);
+				next_pos = $(".item").eq(i).children("div").last();
+				next_pos.html("");
+				next_pos.append($("#progress_view"));
+				uploadSingleFile(file_list.files[i], nextStep);
+			} else {
+				$("#queue_list > .hint > .step3").hide();
+				$("#queue_list > .hint > .step4").show();
+			}
+			$(".item").eq(i-1).children("div").last().html("Done");
+		}
+	};
+	uploadSingleFile(file_list.files[0], nextStep);
+};
+
+var uploadSingleFile = function(fileObj, nextStep) {
+	var formData = new FormData();
+	formData.append("upload", fileObj);
+	xhr2.open("post", "/upload-request", true);
+
+	// Upload complete or error
+	xhr2.onreadystatechange = function()  {
+		if (xhr2.readyState==4) {
+			switch(xhr2.status) {
+				case 200:
+					$("#progress_bar").val(100);
+					$("#progress_text").text(100);
+					break;
+				default:
+					$("#progress_bar").val(0);
+					$("#progress_text").text(0);
+			}
+
+			if (!USE_CLIENT_PROGRESS) {
+				clearInterval(itv);
+			}
+
+			nextStep();
+		}
+	};
+
+	// Client progress - HTML5 style (recommanded)
+	if (USE_CLIENT_PROGRESS) {
+		xhr2.upload.onprogress = function(e) {
+			var percentage = Math.floor(100*e.position/e.totalSize);
+			$("#progress_bar").val(percentage);
+			$("#progress_text").text(percentage);
+		};
+	}
+
+	// Server progress - Nginx upload progress module
+	if (!USE_CLIENT_PROGRESS) {
+		// generate an UUID
+		var i;
+		var uuid128 = "";
+		for(i=0;i<8;i++) {
+			uuid128 += Math.floor((1+Math.random())*0x10000).toString(16).substring(1);
+			if ([1,2,3,4].indexOf(i)>-1) uuid128 += "-";
+		}
+
+		// trace progress by UUID
+		xhr2.setRequestHeader("X-Progress-ID", uuid128);
+		var itv = setInterval(function() {
+			$.ajax({
+				url: "/upload-progress",
+				type: "get",
+				dataType: "json",
+				headers: {"X-Progress-ID": uuid128},
+				success: function(progress) {
+					if (progress.state=="uploading") {
+						var percentage = Math.floor(100*progress.received/progress.size);
+						$("#progress_bar").val(percentage);
+						$("#progress_text").text(percentage);
+					} else {
+						alert(progress.state);
+					}
+				}
+			});
+		}, 500);
+	}
+
+	// Send upload request
+	xhr2.send(formData);
+};
+
+var properSize = function(filesize) {
+	var unit_ptr = 0;
+	var units = ['Bytes', 'KB', 'MB', 'GB'];
+
+	while(filesize>=1024 && unit_ptr+1<units.length) {
+		filesize = filesize/1024;
+		unit_ptr++;
+	}
+
+	filesize += "";
+	var dotpos = filesize.indexOf(".");
+	if (dotpos!=-1) {
+		filesize = filesize.substring(0,dotpos+3);
+	}
+
+	return filesize + " " + units[unit_ptr];
+};
+</script>
+</head>
+
+<body>
+
+<div id="queue_list">
+	<div class="label">
+		<div>Filename</div>
+		<div>Size</div>
+		<div>Progress</div>
+	</div>
+	<div class="hint">
+		<p class="step1">
+			Select files to upload.
+			<button>Select files</button>
+			
+		</p>
+		<p class="step2">
+			Are you ready to upload?
+			<button class="sure">Sure</button> 
+			<button class="cancel">Cancel</button>
+		</p>
+		<p class="step3">
+			Uploading is in progress.
+			<button class="abort">Abort</button>
+		</p>
+		<p class="step4">Everything has been uploaded.</p>
+		<p class="step5">You have aborted this transmission.</p>
+	</div>
+</div>
+
+<div id="hidden_elements">
+	<input id="file_list" type="file" multiple />
+	<div id="progress_view">
+		<progress id="progress_bar" min="0" max="100" value="0"></progress>
+		<span id="progress_text">0</span>%
+	</div>
+</div>
+
+</body>
+
+</html>
