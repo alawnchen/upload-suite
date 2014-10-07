@@ -25,4 +25,4 @@ Requirements
 * nginx upload module
 * nginx upload progress module
 * PHP FastCGI, with PDO-SQLite
-* IE 10+
+* IE 10+, and other HTML5 browsers. See: [Can I use](http://caniuse.com/#feat=xhr2)
