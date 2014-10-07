@@ -1,7 +1,9 @@
 upload-suite
 ============
-
-Make HTML upload easily to use
+* It's available to upload multiple files.
+* Display transmission progress.
+* Upload files in the background.
+* No Flash, Silverlight, or Java Applet.
 
 Installation
 ============
