@@ -7,6 +7,8 @@
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
 <script type="text/javascript">
 var USE_CLIENT_PROGRESS = false;
+var MAX_FILESIZE = "5M";
+var MAX_FILESIZE_BYTES = 0;
 
 var xhr2 = new XMLHttpRequest();
 var abort_flag = false;
@@ -37,16 +39,21 @@ $(document).ready(function() {
 
 var listFiles = function() {
 	var file_list = $("#file_list")[0];
-
+	
 	if (file_list.files.length>0) {
 		var i;
 
 		for (i=0;i<file_list.files.length;i++) {
 			var f = file_list.files[i];
-			var qitem = '<div class="item"><div>{NAME}</div><div>{SIZE}</div><div>Pending</div></div>';
+			var qitem = '<div class="item"><div>{NAME}</div><div>{SIZE}</div><div>{STATUS}</div></div>';
 			qitem = qitem.replace("{NAME}", f.name);
 			qitem = qitem.replace("{SIZE}", properSize(f.size));
-			$(qitem).insertBefore("#queue_list > .hint");
+			if (!isLargeThenLimit(f.size)) {
+				qitem = qitem.replace("{STATUS}", '<span class="ignore">Ready</span>');
+			} else {
+				qitem = qitem.replace("{STATUS}", '<span class="error">Exceed ' + MAX_FILESIZE + '</span>');
+			}
+			$(qitem).insertBefore("#queue_list > .hint");	
 		}
 
 		$("#queue_list > .hint > .step1").hide();
@@ -55,6 +62,7 @@ var listFiles = function() {
 };
 
 var startUpload = function() {
+	var f;
 	var i = 0;
 	var file_list = $("#file_list")[0];
 	var next_pos  = $(".item").eq(i).children("div").last();
@@ -62,30 +70,45 @@ var startUpload = function() {
 	$("#queue_list > .hint > .step2").hide();
 	$("#queue_list > .hint > .step3").show();
 
-	next_pos.html("");
-	next_pos.append($("#progress_view"));
-
 	var nextStep = function() {
 		if (abort_flag) {
 			while (i<file_list.files.length) {
 				$(".item").eq(i++).children("div").last().html("Aborted");
 			}
 		} else {
+			var prev_pos = next_pos;
+
 			if (++i<file_list.files.length) {
 				$("#progress_bar").val(0);
 				$("#progress_text").text(0);
-				next_pos = $(".item").eq(i).children("div").last();
-				next_pos.html("");
-				next_pos.append($("#progress_view"));
-				uploadSingleFile(file_list.files[i], nextStep);
+
+				f = file_list.files[i];
+				if (!isLargeThenLimit(f.size)) {
+					next_pos = $(".item").eq(i).children("div").last();
+					next_pos.html("");
+					next_pos.append($("#progress_view"));
+					uploadSingleFile(f, nextStep);
+				} else {
+					nextStep();
+				}
 			} else {
 				$("#queue_list > .hint > .step3").hide();
 				$("#queue_list > .hint > .step4").show();
+				$("#progress_view").appendTo("#hidden_elements");
 			}
-			$(".item").eq(i-1).children("div").last().html("Done");
+
+			if (prev_pos.html()=="") prev_pos.html('<span class="good">Done</span>');
 		}
 	};
-	uploadSingleFile(file_list.files[0], nextStep);
+
+	f = file_list.files[i];
+	if (!isLargeThenLimit(f.size)) {
+		next_pos.html("");
+		next_pos.append($("#progress_view"));
+		uploadSingleFile(f, nextStep);
+	} else {
+		nextStep();
+	}
 };
 
 var uploadSingleFile = function(fileObj, nextStep) {
@@ -158,6 +181,23 @@ var uploadSingleFile = function(fileObj, nextStep) {
 	xhr2.send(formData);
 };
 
+var isLargeThenLimit = function(filesize) {
+	if (MAX_FILESIZE_BYTES==0) {
+		var size_unit = MAX_FILESIZE.substr(-1);
+		MAX_FILESIZE_BYTES = parseInt(MAX_FILESIZE);
+		switch (size_unit) {
+			case 'G':
+				MAX_FILESIZE_BYTES *= 1024;
+			case 'M':
+				MAX_FILESIZE_BYTES *= 1024;
+			case 'K':
+				MAX_FILESIZE_BYTES *= 1024;
+		}
+	}
+
+	return (filesize>MAX_FILESIZE_BYTES);
+};
+
 var properSize = function(filesize) {
 	var unit_ptr = 0;
 	var units = ['Bytes', 'KB', 'MB', 'GB'];
@@ -201,8 +241,12 @@ var properSize = function(filesize) {
 			Uploading is in progress.
 			<button class="abort">Abort</button>
 		</p>
-		<p class="step4">Everything has been uploaded.</p>
-		<p class="step5">You have aborted this transmission.</p>
+		<p class="step4">
+			Everything has been uploaded.
+		</p>
+		<p class="step5">
+			You have aborted this transmission.
+		</p>
 	</div>
 </div>
 
