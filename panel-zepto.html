@@ -6,15 +6,19 @@
 <link rel="stylesheet" type="text/css" href="panel.css" />
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
 <script type="text/javascript">
-var LISTED_LANG = ["zh-tw"];
+// User options
 var USE_CLIENT_PROGRESS = true;
 var MAX_FILESIZE = "5M";
 
+// Global constants
+var LISTED_LANG = ["zh-tw"];
 var MAX_FILESIZE_BYTES = 0;
 var TERMS = null;
 
+// Global resources
 var xhr2 = new XMLHttpRequest();
 var abort_flag = false;
+var upload_files = null;
 
 $(document).ready(function() {
 	//-------------------------------------
@@ -41,10 +45,35 @@ $(document).ready(function() {
 	}
 
 	// Step 1
-	$("#queue_list > .hint > .step1 > button").click(function() {
+	var nullHandler = function(e) { e.preventDefault(); return false; };
+	$(window).on("dragover", nullHandler);
+	$(window).on("drop", nullHandler);
+	$("#drop_area").on("dragover", nullHandler);
+
+	// Drag & Drop
+	$("#drop_area").on("dragenter", function(e) {
+		e.preventDefault();
+		$(this).css("background", "#ffd");
+	});
+	$("#drop_area").on("dragleave", function(e) {
+		e.preventDefault();
+		$(this).css("background", "#dff");
+	});
+	$("#drop_area").on("drop", function(e) {
+		e.preventDefault();
+		$(this).css("background", "#dff");
+		upload_files = e.dataTransfer.files;
+		listFiles();
+	});
+
+	// Click button
+	$("#queue_list > .hint > .step1 button[term=open]").click(function() {
 		$("#file_list").trigger("click");
 	});
-	$("#file_list").on("change", listFiles);
+	$("#file_list").on("change", function() {
+		upload_files = $("#file_list")[0].files;
+		listFiles();
+	});
 
 	// Step 2
 	$("#queue_list > .hint > .step2 > .sure").click(startUpload);
@@ -64,13 +93,11 @@ $(document).ready(function() {
 });
 
 var listFiles = function() {
-	var file_list = $("#file_list")[0];
-	
-	if (file_list.files.length>0) {
+	if (upload_files.length>0) {
 		var i;
 
-		for (i=0;i<file_list.files.length;i++) {
-			var f = file_list.files[i];
+		for (i=0;i<upload_files.length;i++) {
+			var f = upload_files[i];
 			var qitem = '<div class="item"><div>{NAME}</div><div>{SIZE}</div><div>{STATUS}</div></div>';
 			qitem = qitem.replace("{NAME}", f.name);
 			qitem = qitem.replace("{SIZE}", properSize(f.size));
@@ -102,12 +129,11 @@ var listFiles = function() {
 
 var startUpload = function() {
 	var f, i, next_pos;
-	var file_list = $("#file_list")[0];
 
 	var pending = '<span class="ignore">Pending</span>';
 	if (TERMS!=null) pending = pending.replace("Pending", TERMS["pending"]);
-	for (i=0;i<file_list.files.length;i++) {
-		f = file_list.files[i];
+	for (i=0;i<upload_files.length;i++) {
+		f = upload_files[i];
 		if (!isLargeThenLimit(f.size)) {
 			$(".item").eq(i).children("div").last().html(pending);
 		}
@@ -117,8 +143,8 @@ var startUpload = function() {
 		if (abort_flag) {
 			var aborted = '<span class="error">Aborted</span>';
 			if (TERMS!=null) aborted = aborted.replace("Aborted", TERMS["aborted"]);
-			while (i<file_list.files.length) {
-				f = file_list.files[i];
+			while (i<upload_files.length) {
+				f = upload_files[i];
 				if (!isLargeThenLimit(f.size)) {
 					$(".item").eq(i).children("div").last().html(aborted);
 				}
@@ -127,11 +153,11 @@ var startUpload = function() {
 		} else {
 			var prev_pos = next_pos;
 
-			if (++i<file_list.files.length) {
+			if (++i<upload_files.length) {
 				$("#progress_bar").val(0);
 				$("#progress_text").text(0);
 
-				f = file_list.files[i];
+				f = upload_files[i];
 				if (!isLargeThenLimit(f.size)) {
 					next_pos = $(".item").eq(i).children("div").last();
 					next_pos.html("");
@@ -155,7 +181,7 @@ var startUpload = function() {
 	$("#queue_list > .hint > .step3").show();
 
 	i = 0;
-	f = file_list.files[i];
+	f = upload_files[i];
 	next_pos = $(".item").eq(i).children("div").last();
 	if (!isLargeThenLimit(f.size)) {
 		next_pos.html("");
@@ -284,25 +310,28 @@ var properSize = function(filesize) {
 		<div term="progress">Progress</div>
 	</div>
 	<div class="hint">
-		<p class="step1">
-			<span term="step1">Select files to upload.</span>
-			<button term="open">Open files</button>
-		</p>
-		<p class="step2">
+		<div class="step1">
+			<div id="drop_area">
+				<span term="step1-1">Drag files here to upload.</span><br/>
+				<span term="step1-2">You can also click this button to open.</span>
+				<button term="open">Open files</button>
+			</div>
+		</div>
+		<div class="step2">
 			<span term="step2">Are you ready to upload?</span>
 			<button class="sure" term="sure">Sure</button> 
 			<button class="cancel" term="cancel">Cancel</button>
-		</p>
-		<p class="step3">
+		</div>
+		<div class="step3">
 			<span term="step3">Uploading is in progress.</span>
 			<button class="abort" term="abort">Abort</button>
-		</p>
-		<p class="step4">
+		</div>
+		<div class="step4">
 			<span term="step4">Everything has been uploaded.</span>
-		</p>
-		<p class="step5">
+		</div>
+		<div class="step5">
 			<span term="step5">You have aborted this transmission.</span>
-		</p>
+		</div>
 	</div>
 </div>
 

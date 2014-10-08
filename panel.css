@@ -46,6 +46,19 @@
 
 #hidden_elements { display: none; }
 
+.step1, .step2, .step3, .step4, .step5 {
+	width: 90%;
+	margin: 10px auto;
+}
+
+#drop_area {
+	background: #dff;
+	border: 2px dotted #77f;
+	border-radius: 10px;
+	padding: 10px;
+	line-height: 25px;
+}
+
 .good { color: #00f; }
 .error { color: #f00; }
 .ignore { color: #777; }
