@@ -6,7 +6,7 @@
 <link rel="stylesheet" type="text/css" href="panel.css" />
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
 <script type="text/javascript">
-var USE_CLIENT_PROGRESS = false;
+var USE_CLIENT_PROGRESS = true;
 var MAX_FILESIZE = "5M";
 var MAX_FILESIZE_BYTES = 0;
 
@@ -140,7 +140,8 @@ var uploadSingleFile = function(fileObj, nextStep) {
 	// Client progress - HTML5 style (recommanded)
 	if (USE_CLIENT_PROGRESS) {
 		xhr2.upload.onprogress = function(e) {
-			var percentage = Math.floor(100*e.position/e.totalSize);
+			//var percentage = Math.floor(100*e.position/e.totalSize); // Chrome
+			var percentage = Math.floor(100*e.loaded/e.total); // IE
 			$("#progress_bar").val(percentage);
 			$("#progress_text").text(percentage);
 		};
