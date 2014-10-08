@@ -1,7 +1,9 @@
 upload-suite
 ============
-
-Make HTML upload easily to use
+* It's available to upload multiple files.
+* Display transmission progress.
+* Upload files in the background.
+* No Flash, Silverlight, or Java Applet.
 
 Installation
 ============
@@ -23,4 +25,4 @@ Requirements
 * nginx upload module
 * nginx upload progress module
 * PHP FastCGI, with PDO-SQLite
-* IE 10+
+* IE 10+, and other HTML5 browsers. See: [Can I use](http://caniuse.com/#feat=xhr2)
