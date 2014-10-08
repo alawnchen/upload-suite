@@ -6,14 +6,40 @@
 <link rel="stylesheet" type="text/css" href="panel.css" />
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
 <script type="text/javascript">
+var LISTED_LANG = ["zh-tw"];
 var USE_CLIENT_PROGRESS = true;
 var MAX_FILESIZE = "5M";
+
 var MAX_FILESIZE_BYTES = 0;
+var TERMS = null;
 
 var xhr2 = new XMLHttpRequest();
 var abort_flag = false;
 
 $(document).ready(function() {
+	//-------------------------------------
+	// console.log(navigator.language);
+	// console.log(navigator.userLanguage);
+	//-------------------------------------
+	//  Chrome 37: zh-TW / undefined
+	// Firefox 32: zh-TW / undefined
+	// Safari 7.1: zh-tw / undefined
+	//      IE 11: zh-TW / zh_TW
+	//-------------------------------------
+	var lang = navigator.language.toLowerCase();
+	if (LISTED_LANG.indexOf(lang)>-1) {
+		var url = "i18n/" + lang + ".json";
+		$.getJSON(url, function(terms) {
+			document.title = terms["title"];
+			for (key in terms) {
+				var term = terms[key];
+				var q = "[term={KEY}]".replace("{KEY}",key);
+				$(q).text(term);
+			}
+			TERMS = terms;
+		});
+	}
+
 	// Step 1
 	$("#queue_list > .hint > .step1 > button").click(function() {
 		$("#file_list").trigger("click");
@@ -48,11 +74,24 @@ var listFiles = function() {
 			var qitem = '<div class="item"><div>{NAME}</div><div>{SIZE}</div><div>{STATUS}</div></div>';
 			qitem = qitem.replace("{NAME}", f.name);
 			qitem = qitem.replace("{SIZE}", properSize(f.size));
+
+			var status;
 			if (!isLargeThenLimit(f.size)) {
-				qitem = qitem.replace("{STATUS}", '<span class="ignore">Ready</span>');
+				if (TERMS!=null) {
+					status = '<span class="ignore">' + TERMS["ready"] + '</span>';
+				} else {
+					status = '<span class="ignore">Ready</span>';	
+				}
 			} else {
-				qitem = qitem.replace("{STATUS}", '<span class="error">Exceed ' + MAX_FILESIZE + '</span>');
+				if (TERMS!=null) {
+					status = '<span class="error">' + TERMS['exceed'] + '</span>';
+				} else {
+					status = '<span class="error">Exceed {MAX_FILESIZE}</span>';	
+				}
+				status = status.replace("{MAX_FILESIZE}", MAX_FILESIZE);
 			}
+			qitem = qitem.replace("{STATUS}", status);
+
 			$(qitem).insertBefore("#queue_list > .hint");	
 		}
 
@@ -62,18 +101,28 @@ var listFiles = function() {
 };
 
 var startUpload = function() {
-	var f;
-	var i = 0;
+	var f, i, next_pos;
 	var file_list = $("#file_list")[0];
-	var next_pos  = $(".item").eq(i).children("div").last();
 
-	$("#queue_list > .hint > .step2").hide();
-	$("#queue_list > .hint > .step3").show();
+	var pending = '<span class="ignore">Pending</span>';
+	if (TERMS!=null) pending = pending.replace("Pending", TERMS["pending"]);
+	for (i=0;i<file_list.files.length;i++) {
+		f = file_list.files[i];
+		if (!isLargeThenLimit(f.size)) {
+			$(".item").eq(i).children("div").last().html(pending);
+		}
+	}
 
 	var nextStep = function() {
 		if (abort_flag) {
+			var aborted = '<span class="error">Aborted</span>';
+			if (TERMS!=null) aborted = aborted.replace("Aborted", TERMS["aborted"]);
 			while (i<file_list.files.length) {
-				$(".item").eq(i++).children("div").last().html("Aborted");
+				f = file_list.files[i];
+				if (!isLargeThenLimit(f.size)) {
+					$(".item").eq(i).children("div").last().html(aborted);
+				}
+				i++;
 			}
 		} else {
 			var prev_pos = next_pos;
@@ -97,11 +146,17 @@ var startUpload = function() {
 				$("#progress_view").appendTo("#hidden_elements");
 			}
 
-			if (prev_pos.html()=="") prev_pos.html('<span class="good">Done</span>');
+			var done = (TERMS!=null) ? TERMS["done"] : "Done";
+			if (prev_pos.html()=="") prev_pos.html('<span class="good">'+done+'</span>');
 		}
 	};
 
+	$("#queue_list > .hint > .step2").hide();
+	$("#queue_list > .hint > .step3").show();
+
+	i = 0;
 	f = file_list.files[i];
+	next_pos = $(".item").eq(i).children("div").last();
 	if (!isLargeThenLimit(f.size)) {
 		next_pos.html("");
 		next_pos.append($("#progress_view"));
@@ -140,7 +195,6 @@ var uploadSingleFile = function(fileObj, nextStep) {
 	// Client progress - HTML5 style (recommanded)
 	if (USE_CLIENT_PROGRESS) {
 		xhr2.upload.onprogress = function(e) {
-			//var percentage = Math.floor(100*e.position/e.totalSize); // Chrome
 			var percentage = Math.floor(100*e.loaded/e.total); // IE
 			$("#progress_bar").val(percentage);
 			$("#progress_text").text(percentage);
@@ -171,7 +225,9 @@ var uploadSingleFile = function(fileObj, nextStep) {
 						$("#progress_bar").val(percentage);
 						$("#progress_text").text(percentage);
 					} else {
-						alert(progress.state);
+						if (window.console!=undefined) {
+							console.error(progress.state);
+						}
 					}
 				}
 			});
@@ -223,36 +279,35 @@ var properSize = function(filesize) {
 
 <div id="queue_list">
 	<div class="label">
-		<div>Filename</div>
-		<div>Size</div>
-		<div>Progress</div>
+		<div term="filename">Filename</div>
+		<div term="size">Size</div>
+		<div term="progress">Progress</div>
 	</div>
 	<div class="hint">
 		<p class="step1">
-			Select files to upload.
-			<button>Select files</button>
-			
+			<span term="step1">Select files to upload.</span>
+			<button term="open">Open files</button>
 		</p>
 		<p class="step2">
-			Are you ready to upload?
-			<button class="sure">Sure</button> 
-			<button class="cancel">Cancel</button>
+			<span term="step2">Are you ready to upload?</span>
+			<button class="sure" term="sure">Sure</button> 
+			<button class="cancel" term="cancel">Cancel</button>
 		</p>
 		<p class="step3">
-			Uploading is in progress.
-			<button class="abort">Abort</button>
+			<span term="step3">Uploading is in progress.</span>
+			<button class="abort" term="abort">Abort</button>
 		</p>
 		<p class="step4">
-			Everything has been uploaded.
+			<span term="step4">Everything has been uploaded.</span>
 		</p>
 		<p class="step5">
-			You have aborted this transmission.
+			<span term="step5">You have aborted this transmission.</span>
 		</p>
 	</div>
 </div>
 
 <div id="hidden_elements">
-	<input id="file_list" type="file" multiple />
+	<input id="file_list" type="file" multiple>
 	<div id="progress_view">
 		<progress id="progress_bar" min="0" max="100" value="0"></progress>
 		<span id="progress_text">0</span>%

@@ -1,0 +1,20 @@
+{
+	"title":    "上傳小幫手",
+	"filename": "檔案名稱",
+	"size":     "檔案大小",
+	"progress": "進度",
+	"step1":    "請選擇準備上傳的檔案。",
+	"step2":    "確定要上傳這些檔案嗎？",
+	"step3":    "檔案上傳中 ...",
+	"step4":    "所有檔案已上傳完成。",
+	"step5":    "上傳動作已中斷。",
+	"open":     "開啟",
+	"sure":     "確定",
+	"cancel":   "取消",
+	"abort":    "中斷",
+	"ready":    "就緒",
+	"exceed":   "檔案大小超過 {MAX_FILESIZE}",
+	"pending":  "即將上傳",
+	"aborted":  "放棄上傳",
+	"done":     "已完成"
+}
