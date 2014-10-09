@@ -1,7 +1,7 @@
 #queue_list > .label { clear: left; text-align: center; }
 #queue_list > .item  { clear: left; }
 
-#queue_list > .hint {
+#queue_list > .prompt {
 	clear: left;
 	width: 622px;
 	text-align: center;
@@ -9,10 +9,10 @@
 	padding: 3px 0px;
 }
 
-#queue_list > .hint > .step2,
-#queue_list > .hint > .step3,
-#queue_list > .hint > .step4,
-#queue_list > .hint > .step5 { display: none; }
+#queue_list > .prompt > .step2,
+#queue_list > .prompt > .step3,
+#queue_list > .prompt > .step4,
+#queue_list > .prompt > .step5 { display: none; }
 
 #queue_list > .label > div { background: #eee; }
 
@@ -57,6 +57,10 @@
 	border-radius: 10px;
 	padding: 10px;
 	line-height: 25px;
+}
+
+#drop_area.add_files {
+	background: #ffd !important;
 }
 
 .good { color: #00f; }

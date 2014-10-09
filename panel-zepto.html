@@ -21,6 +21,57 @@ var abort_flag = false;
 var upload_files = null;
 
 $(document).ready(function() {
+	loadLanguage();
+
+	// Step 1
+	var nullHandler = function(e) { e.preventDefault(); return false; };
+	$(window).on("dragover", nullHandler);
+	$(window).on("drop", nullHandler);
+	$("#drop_area").on("dragover", nullHandler);
+
+	// Drag & Drop
+	$("#drop_area").on("dragenter", function(e) {
+		e.preventDefault();
+		$(this).addClass("add_files");
+	});
+	$("#drop_area").on("dragleave", function(e) {
+		e.preventDefault();
+		$(this).removeClass("add_files");
+	});
+	$("#drop_area").on("drop", function(e) {
+		e.preventDefault();
+		$(this).removeClass("add_files");
+		upload_files = e.dataTransfer.files;
+		listFiles();
+	});
+
+	// Click button
+	$("#queue_list > .prompt > .step1 button[term=open]").click(function() {
+		$("#file_list").trigger("click");
+	});
+	$("#file_list").on("change", function() {
+		upload_files = $("#file_list")[0].files;
+		listFiles();
+	});
+
+	// Step 2
+	$("#queue_list > .prompt > .step2 > .sure").click(startUpload);
+	$("#queue_list > .prompt > .step2 > .cancel").click(function() {
+		$("#queue_list > .item").remove();
+		$("#queue_list > .prompt > .step2").hide();
+		$("#queue_list > .prompt > .step1").show();
+	});
+
+	// Step 3
+	$("#queue_list > .prompt > .step3 > .abort").click(function() {
+		abort_flag = true;
+		xhr2.abort();
+		$("#queue_list > .prompt > .step3").hide();
+		$("#queue_list > .prompt > .step5").show();
+	});
+});
+
+var loadLanguage = function() {
 	//-------------------------------------
 	// console.log(navigator.language);
 	// console.log(navigator.userLanguage);
@@ -30,6 +81,7 @@ $(document).ready(function() {
 	// Safari 7.1: zh-tw / undefined
 	//      IE 11: zh-TW / zh_TW
 	//-------------------------------------
+
 	var lang = navigator.language.toLowerCase();
 	if (LISTED_LANG.indexOf(lang)>-1) {
 		var url = "i18n/" + lang + ".json";
@@ -43,54 +95,7 @@ $(document).ready(function() {
 			TERMS = terms;
 		});
 	}
-
-	// Step 1
-	var nullHandler = function(e) { e.preventDefault(); return false; };
-	$(window).on("dragover", nullHandler);
-	$(window).on("drop", nullHandler);
-	$("#drop_area").on("dragover", nullHandler);
-
-	// Drag & Drop
-	$("#drop_area").on("dragenter", function(e) {
-		e.preventDefault();
-		$(this).css("background", "#ffd");
-	});
-	$("#drop_area").on("dragleave", function(e) {
-		e.preventDefault();
-		$(this).css("background", "#dff");
-	});
-	$("#drop_area").on("drop", function(e) {
-		e.preventDefault();
-		$(this).css("background", "#dff");
-		upload_files = e.dataTransfer.files;
-		listFiles();
-	});
-
-	// Click button
-	$("#queue_list > .hint > .step1 button[term=open]").click(function() {
-		$("#file_list").trigger("click");
-	});
-	$("#file_list").on("change", function() {
-		upload_files = $("#file_list")[0].files;
-		listFiles();
-	});
-
-	// Step 2
-	$("#queue_list > .hint > .step2 > .sure").click(startUpload);
-	$("#queue_list > .hint > .step2 > .cancel").click(function() {
-		$("#queue_list > .item").remove();
-		$("#queue_list > .hint > .step2").hide();
-		$("#queue_list > .hint > .step1").show();
-	});
-
-	// Step 3
-	$("#queue_list > .hint > .step3 > .abort").click(function() {
-		abort_flag = true;
-		xhr2.abort();
-		$("#queue_list > .hint > .step3").hide();
-		$("#queue_list > .hint > .step5").show();
-	});
-});
+};
 
 var listFiles = function() {
 	if (upload_files.length>0) {
@@ -98,55 +103,50 @@ var listFiles = function() {
 
 		for (i=0;i<upload_files.length;i++) {
 			var f = upload_files[i];
-			var qitem = '<div class="item"><div>{NAME}</div><div>{SIZE}</div><div>{STATUS}</div></div>';
-			qitem = qitem.replace("{NAME}", f.name);
-			qitem = qitem.replace("{SIZE}", properSize(f.size));
-
+			var item = $("#hidden_elements > .item").clone();
 			var status;
-			if (!isLargeThenLimit(f.size)) {
-				if (TERMS!=null) {
-					status = '<span class="ignore">' + TERMS["ready"] + '</span>';
-				} else {
-					status = '<span class="ignore">Ready</span>';	
-				}
-			} else {
-				if (TERMS!=null) {
-					status = '<span class="error">' + TERMS['exceed'] + '</span>';
-				} else {
-					status = '<span class="error">Exceed {MAX_FILESIZE}</span>';	
-				}
-				status = status.replace("{MAX_FILESIZE}", MAX_FILESIZE);
-			}
-			qitem = qitem.replace("{STATUS}", status);
 
-			$(qitem).insertBefore("#queue_list > .hint");	
+			if (!isLargeThenLimit(f.size)) {
+				status = (TERMS!=null) ? TERMS["ready"] : "Ready";
+			} else {
+				status = (TERMS!=null) ? TERMS["exceed"] : "Exceed {MAX_FILESIZE}";
+				status = status.replace("{MAX_FILESIZE}", MAX_FILESIZE);
+				item.children("div").eq(2).children("span").removeClass("ignore");
+				item.children("div").eq(2).children("span").addClass("error");
+			}
+
+			item.insertBefore("#queue_list > .prompt");
+			item.children("div").eq(0).text(f.name);
+			item.children("div").eq(1).text(properSize(f.size));
+			item.children("div").eq(2).children("span").text(status);
 		}
 
-		$("#queue_list > .hint > .step1").hide();
-		$("#queue_list > .hint > .step2").show();
+		$("#queue_list > .prompt > .step1").hide();
+		$("#queue_list > .prompt > .step2").show();
 	}
 };
 
 var startUpload = function() {
 	var f, i, next_pos;
 
-	var pending = '<span class="ignore">Pending</span>';
-	if (TERMS!=null) pending = pending.replace("Pending", TERMS["pending"]);
+	var pending = (TERMS!=null) ? TERMS["pending"] : "Pending";
 	for (i=0;i<upload_files.length;i++) {
 		f = upload_files[i];
 		if (!isLargeThenLimit(f.size)) {
-			$(".item").eq(i).children("div").last().html(pending);
+			$(".item").eq(i).children("div").eq(2).children("span").text(pending);
 		}
 	}
 
 	var nextStep = function() {
 		if (abort_flag) {
-			var aborted = '<span class="error">Aborted</span>';
-			if (TERMS!=null) aborted = aborted.replace("Aborted", TERMS["aborted"]);
+			var target;
+			var aborted = (TERMS!=null) ? TERMS["aborted"] : 'Aborted';
 			while (i<upload_files.length) {
 				f = upload_files[i];
 				if (!isLargeThenLimit(f.size)) {
-					$(".item").eq(i).children("div").last().html(aborted);
+					target = $(".item").eq(i).children("div").eq(2);
+					target.html("");
+					$("<span></span>").text(aborted).addClass("error").appendTo(target);
 				}
 				i++;
 			}
@@ -167,8 +167,8 @@ var startUpload = function() {
 					nextStep();
 				}
 			} else {
-				$("#queue_list > .hint > .step3").hide();
-				$("#queue_list > .hint > .step4").show();
+				$("#queue_list > .prompt > .step3").hide();
+				$("#queue_list > .prompt > .step4").show();
 				$("#progress_view").appendTo("#hidden_elements");
 			}
 
@@ -177,8 +177,8 @@ var startUpload = function() {
 		}
 	};
 
-	$("#queue_list > .hint > .step2").hide();
-	$("#queue_list > .hint > .step3").show();
+	$("#queue_list > .prompt > .step2").hide();
+	$("#queue_list > .prompt > .step3").show();
 
 	i = 0;
 	f = upload_files[i];
@@ -309,7 +309,7 @@ var properSize = function(filesize) {
 		<div term="size">Size</div>
 		<div term="progress">Progress</div>
 	</div>
-	<div class="hint">
+	<div class="prompt">
 		<div class="step1">
 			<div id="drop_area">
 				<span term="step1-1">Drag files here to upload.</span><br/>
@@ -336,10 +336,18 @@ var properSize = function(filesize) {
 </div>
 
 <div id="hidden_elements">
+	<!-- File input element, hidden it because it's so ugly. -->
 	<input id="file_list" type="file" multiple>
+	<!-- Progress bar & percentage text, it will be moved while upload started. -->
 	<div id="progress_view">
 		<progress id="progress_bar" min="0" max="100" value="0"></progress>
 		<span id="progress_text">0</span>%
+	</div>
+	<!-- File info item, it will be cloned to #queue_list while files are selected. -->
+	<div class="item">
+		<div>{NAME}</div>
+		<div>{SIZE}</div>
+		<div><span class="ignore">{PROGRESS}</span></div>
 	</div>
 </div>
 
