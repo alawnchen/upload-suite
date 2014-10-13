@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	$("#set_ru").on("click", function() {
+		sessionStorage["upload_suite_redirect_url"] = $("#redirect_url").val();
+	});
+
+	$("#clear_ru").on("click", function() {
+		delete sessionStorage["upload_suite_redirect_url"];
+	});
+
+	$("#upload").on("click", function() {
+		location.href = "panel-zepto.html";
+	});
+});
+</script>
+</head>
+
+<body>
+Redirect URL: <input id="redirect_url" type="text" value="complete-be.php"> <button id="set_ru">Set</button>
+<hr>
+<button id="clear_ru">Clear redirect url</button>
+<button id="upload">Upload</button>
+</body>
+
+</html>

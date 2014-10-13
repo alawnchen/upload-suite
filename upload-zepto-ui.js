@@ -1,7 +1,9 @@
 // User options
-var USE_CLIENT_PROGRESS = true;
+var CLIENT_PROGRESS = true; // if true get progress from javascript, otherwise get progress from nginx module
 var MAX_FILESIZE = "5M";
-var LEAVE_PAGE_TIMEOUT = 5;
+var LEAVE_PAGE_TIMEOUT = 3; // Wait n seconds after upload complete.
+var BATCH_ID_POST = true;   // Send batch_id to redirected url (for back-end)
+var BATCH_ID_SS   = true;   // Save batch_id to sessionStorate before redirect (for front-end)
 
 // Global constants
 var LISTED_LANG = ["zh-tw"];
@@ -123,8 +125,16 @@ var startUpload = function() {
 	var f, i, next_pos;
 	var batch_id = generateUUID();
 	var complete_form = document.forms["complete_req"];
-	complete_form.action = "complete.php";
-	$("#batch_id").val(batch_id);
+
+	// read the page to redirect after uploading
+	if (sessionStorage["upload_suite_redirect_url"]!=undefined) {
+		complete_form.action = sessionStorage["upload_suite_redirect_url"];
+	} else {
+		complete_form.action = "complete-be.php";
+	}
+
+	if (BATCH_ID_POST) $("#batch_id").val(batch_id);
+	if (BATCH_ID_SS)   sessionStorage["upload_suite_batch_id"] = batch_id;
 
 	var pending = (TERMS!=null) ? TERMS["pending"] : "Pending";
 	for (i=0;i<upload_files.length;i++) {
@@ -231,7 +241,7 @@ var uploadSingleFile = function(f, batch_id, nextStep) {
 					$("#progress_text").text(0);
 			}
 
-			if (!USE_CLIENT_PROGRESS) {
+			if (!CLIENT_PROGRESS) {
 				clearInterval(itv);
 			}
 
@@ -240,7 +250,7 @@ var uploadSingleFile = function(f, batch_id, nextStep) {
 	};
 
 	// Client progress - HTML5 style (recommanded)
-	if (USE_CLIENT_PROGRESS) {
+	if (CLIENT_PROGRESS) {
 		xhr2.upload.onprogress = function(e) {
 			var percentage = Math.floor(100*e.loaded/e.total); // IE
 			$("#progress_bar").val(percentage);
@@ -249,7 +259,7 @@ var uploadSingleFile = function(f, batch_id, nextStep) {
 	}
 
 	// Server progress - Nginx upload progress module
-	if (!USE_CLIENT_PROGRESS) {
+	if (!CLIENT_PROGRESS) {
 		var uuid128 = generateUUID();
 
 		// trace progress by UUID
