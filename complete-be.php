@@ -13,10 +13,20 @@ function accessApi($postdata) {
 	return json_decode($ret, true);
 }
 
-$postdata = array(
-	'action'   => 'info',
-	'batch_id' => $_POST['batch_id'] // batch_id from panel_zepto.html
-);
+$DELETE_FILES = true;
 
 header('Content-Type: text/plain; charset=utf-8');
+
+$postdata = array(
+	'action'   => 'info',
+	'batch_id' => $_POST['batch_id']
+);
 print_r(accessApi($postdata));
+
+if ($DELETE_FILES) {
+	$postdata = array(
+		'action'   => 'delete',
+		'batch_id' => $_POST['batch_id']
+	);
+	accessApi($postdata);
+}

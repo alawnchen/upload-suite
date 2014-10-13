@@ -38,6 +38,26 @@ class UploadApi {
 		return $result;
 	}
 
+	/**
+	 * Delete a batch of files.
+	 */
+	function delete() {
+		$stmt = $this->pdo->prepare('DELETE FROM upload_info WHERE id=?');
+
+		$fileinfo = $this->info();
+		for ($i=0;$i<count($fileinfo);$i++) {
+			$id   = $fileinfo[$i]['id'];
+			$temp = $fileinfo[$i]['temp'];
+			if (unlink($temp)) {
+				$stmt->execute(array($id));
+			} else {
+				return array();
+			}
+		}
+
+		return array();
+	}
+
 	function getParam($key) {
 		if (isset($_POST[$key])) return $_POST[$key];
 		if (isset($_GET[$key])) return $_GET[$key];
