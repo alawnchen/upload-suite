@@ -13,7 +13,7 @@ function accessApi($postdata) {
 	return json_decode($ret, true);
 }
 
-$DELETE_FILES = true;
+$DELETE_FILES = false;
 
 header('Content-Type: text/plain; charset=utf-8');
 
